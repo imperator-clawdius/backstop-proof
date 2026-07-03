@@ -1,253 +1,182 @@
-import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type * as React from "react";
+import { Link, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import prisma from "../db.server";
+import { getShopContext } from "../services/shop-context.server";
+import { listDemoDisputes } from "../services/demo-data.server";
+import { ShopifyGraphqlService } from "../services/shopify-graphql.server";
+import { listUnreadNotifications } from "../services/notifications.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const context = await getShopContext(request);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [openProofCaptures, ordersPackedToday, evidencePacks, notifications] =
+    await Promise.all([
+      prisma.proofCapture.count({
+        where: { shopId: context.shop.id, status: "DRAFT" },
+      }),
+      prisma.proofCapture.count({
+        where: { shopId: context.shop.id, status: "SEALED", sealedAt: { gte: today } },
+      }),
+      prisma.evidencePack.count({ where: { shopId: context.shop.id } }),
+      listUnreadNotifications(context.shop.id),
+    ]);
 
-  return null;
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
+  let openDisputes = 0;
+  let responseDueSoon = 0;
+  let disputesUnavailable = false;
+  try {
+    const disputes =
+      context.demoMode || !context.admin
+        ? listDemoDisputes()
+        : await new ShopifyGraphqlService(context.admin).listDisputes();
+    const now = Date.now();
+    const dueSoonMs = 1000 * 60 * 60 * 24 * 5;
+    openDisputes = disputes.filter((dispute) =>
+      ["NEEDS_RESPONSE", "UNDER_REVIEW"].includes(dispute.status ?? ""),
+    ).length;
+    responseDueSoon = disputes.filter((dispute) => {
+      if (!dispute.evidenceDueBy) return false;
+      const due = new Date(dispute.evidenceDueBy).getTime();
+      return due >= now && due - now <= dueSoonMs;
+    }).length;
+  } catch {
+    disputesUnavailable = true;
+  }
 
   return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
+    demoMode: context.demoMode,
+    openProofCaptures,
+    ordersPackedToday,
+    evidencePacks,
+    openDisputes,
+    responseDueSoon,
+    disputesUnavailable,
+    notifications,
   };
 };
 
-export default function Index() {
-  const fetcher = useFetcher<typeof action>();
-
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
-
+export default function Dashboard() {
+  const data = useLoaderData<typeof loader>();
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
-
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
+    <s-page heading="Backstop Proof">
+      <s-section heading="Command center">
+        {data.disputesUnavailable && (
+          <Notice tone="warning">
+            Dispute access is unavailable for this store or app install. You can
+            still generate manual evidence packs from order data.
+          </Notice>
+        )}
+        <div style={gridStyle}>
+          <Metric label="Open proof captures" value={data.openProofCaptures} />
+          <Metric label="Orders packed today" value={data.ordersPackedToday} />
+          <Metric label="Evidence packs generated" value={data.evidencePacks} />
+          <Metric label="Open disputes" value={data.openDisputes} />
+          <Metric label="Responses due soon" value={data.responseDueSoon} />
+        </div>
       </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references.
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
-          )}
-        </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
-            <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
 
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-            </s-stack>
-          </s-section>
+      <s-section heading="Quick actions">
+        <div style={actionGridStyle}>
+          <Action href="/app/capture" title="Capture proof" body="Start or continue a packing proof capture." />
+          <Action href="/app/orders" title="Find order" body="Search Shopify orders by name, email, or tracking." />
+          <Action href="/app/evidence/new" title="Generate evidence pack" body="Create a PDF and rebuttal from order records." />
+          <Action href="/app/disputes" title="View disputes" body="Review Shopify Payments disputes or demo disputes." />
+          <Action href="/app/settings" title="Settings" body="Configure policies, retention, billing, and notifications." />
+        </div>
+      </s-section>
+
+      <s-section heading="Notifications">
+        {data.notifications.length === 0 ? (
+          <s-paragraph>No unread notifications.</s-paragraph>
+        ) : (
+          <s-unordered-list>
+            {data.notifications.map((notification) => (
+              <s-list-item key={notification.id}>
+                <strong>{notification.title}</strong> {notification.body}
+              </s-list-item>
+            ))}
+          </s-unordered-list>
         )}
       </s-section>
 
-      <s-section slot="aside" heading="App template specs">
+      <s-section slot="aside" heading="MVP boundaries">
         <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
+          Backstop Proof prepares merchant-reviewed evidence materials. It does
+          not provide legal advice and does not guarantee dispute outcomes.
         </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
-
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
       </s-section>
     </s-page>
   );
 }
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={metricStyle}>
+      <div style={{ fontSize: 28, fontWeight: 700 }}>{value}</div>
+      <div style={{ color: "#4b5563" }}>{label}</div>
+    </div>
+  );
+}
+
+function Action({ href, title, body }: { href: string; title: string; body: string }) {
+  return (
+    <Link to={href} style={actionStyle}>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </Link>
+  );
+}
+
+function Notice({ children, tone }: { children: React.ReactNode; tone: "warning" | "info" }) {
+  return (
+    <div
+      style={{
+        padding: 12,
+        marginBottom: 16,
+        border: "1px solid",
+        borderColor: tone === "warning" ? "#d97706" : "#2563eb",
+        background: tone === "warning" ? "#fffbeb" : "#eff6ff",
+        borderRadius: 6,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const gridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 12,
+};
+
+const metricStyle: React.CSSProperties = {
+  border: "1px solid #d8dee4",
+  borderRadius: 6,
+  padding: 16,
+  minHeight: 94,
+  background: "#ffffff",
+};
+
+const actionGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 12,
+};
+
+const actionStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 6,
+  padding: 14,
+  border: "1px solid #d8dee4",
+  borderRadius: 6,
+  color: "#111827",
+  textDecoration: "none",
+  background: "#ffffff",
+};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

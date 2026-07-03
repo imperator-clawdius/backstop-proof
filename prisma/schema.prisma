@@ -32,3 +32,142 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model Shop {
+  id            String    @id @default(cuid())
+  shopDomain    String    @unique
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+  accessScope   String?
+  plan          String    @default("FREE")
+  settings      Json
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  proofCaptures   ProofCapture[]
+  proofFiles      ProofFile[]
+  evidencePacks   EvidencePack[]
+  disputeSnapshots DisputeSnapshot[]
+  auditEvents     AuditEvent[]
+  notifications   Notification[]
+}
+
+model ProofCapture {
+  id             String    @id @default(cuid())
+  shopId         String
+  shopifyOrderId String
+  orderName      String
+  status         String    @default("DRAFT")
+  staffLabel     String?
+  stationLabel   String?
+  notes          String?
+  sealedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  shop          Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  files         ProofFile[]
+  evidencePacks EvidencePack[]
+
+  @@index([shopId, shopifyOrderId])
+  @@index([shopId, status])
+}
+
+model ProofFile {
+  id                String   @id @default(cuid())
+  proofCaptureId    String
+  shopId            String
+  storageKey        String
+  originalFilename  String
+  mimeType          String
+  byteSize          Int
+  sha256            String
+  imageWidth        Int?
+  imageHeight       Int?
+  capturedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  proofCapture ProofCapture @relation(fields: [proofCaptureId], references: [id], onDelete: Cascade)
+  shop         Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, proofCaptureId])
+  @@index([shopId, sha256])
+}
+
+model EvidencePack {
+  id                String   @id @default(cuid())
+  shopId            String
+  shopifyOrderId    String
+  orderName         String
+  disputeId         String?
+  proofCaptureId    String?
+  status            String   @default("GENERATED")
+  pdfStorageKey     String
+  rebuttalText      String
+  completenessScore Int
+  missingItems      Json
+  rawSnapshot       Json
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  shop         Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  proofCapture ProofCapture? @relation(fields: [proofCaptureId], references: [id], onDelete: SetNull)
+
+  @@index([shopId, shopifyOrderId])
+  @@index([shopId, disputeId])
+}
+
+model DisputeSnapshot {
+  id               String   @id @default(cuid())
+  shopId           String
+  shopifyDisputeId String
+  shopifyOrderId   String?
+  orderName        String?
+  status           String
+  reason           String
+  amount           String
+  currency         String
+  evidenceDueBy    DateTime?
+  raw              Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, shopifyDisputeId])
+  @@index([shopId, status])
+  @@index([shopId, evidenceDueBy])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  shopId     String
+  entityType String
+  entityId   String
+  actorType  String   @default("SYSTEM")
+  actorLabel String?
+  action     String
+  metadata   Json
+  createdAt  DateTime @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, entityType, entityId])
+  @@index([shopId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  shopId    String
+  type      String
+  title     String
+  body      String
+  status    String    @default("UNREAD")
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, status])
+  @@index([shopId, type])
+}

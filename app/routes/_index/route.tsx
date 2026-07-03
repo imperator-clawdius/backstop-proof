@@ -21,9 +21,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Backstop Proof</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Packing proof and chargeback evidence packs for Shopify orders.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -39,16 +39,16 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Capture packing proof</strong>. Upload product, inside-box,
+            and sealed-label proof before shipment.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Seal evidence</strong>. Store SHA-256 hashes and a
+            reviewable audit trail.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Generate evidence packs</strong>. Prepare merchant-reviewed
+            PDFs and rebuttal text without guaranteed-win claims.
           </li>
         </ul>
       </div>

@@ -1,12 +1,16 @@
 # This file stores configurations for your Shopify app.
+name = "Backstop Proof"
+handle = "backstop-proof"
 client_id = ""
+application_url = "https://example.com"
+embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "read_orders,read_customers,read_shopify_payments_disputes,read_shopify_payments_dispute_evidences,write_shopify_payments_dispute_evidences"
 
 [webhooks]
-api_version = "2025-10"
+api_version = "2026-07"
 
   # Handled by: /app/routes/webhooks.app.uninstalled.tsx
   [[webhooks.subscriptions]]

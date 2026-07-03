@@ -1,0 +1,20 @@
+{
+  "id": "gid://shopify/ShopifyPaymentsDispute/7002",
+  "legacyResourceId": "7002",
+  "status": "NEEDS_RESPONSE",
+  "reason": "FRAUDULENT",
+  "initiatedAt": "2026-07-03T11:00:00Z",
+  "evidenceDueBy": "2026-07-09T23:59:59Z",
+  "evidenceSentOn": null,
+  "amount": {
+    "amount": "89.00",
+    "currencyCode": "USD"
+  },
+  "order": {
+    "id": "gid://shopify/Order/1043",
+    "name": "#1043"
+  },
+  "evidence": {
+    "id": "gid://shopify/ShopifyPaymentsDisputeEvidence/9002"
+  }
+}

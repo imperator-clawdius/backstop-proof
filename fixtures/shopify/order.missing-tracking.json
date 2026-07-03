@@ -1,0 +1,54 @@
+{
+  "id": "gid://shopify/Order/1043",
+  "name": "#1043",
+  "createdAt": "2026-07-02T09:00:00Z",
+  "displayFinancialStatus": "PAID",
+  "displayFulfillmentStatus": "FULFILLED",
+  "currencyCode": "USD",
+  "totalPriceSet": {
+    "shopMoney": {
+      "amount": "89.00",
+      "currencyCode": "USD"
+    }
+  },
+  "customer": {
+    "firstName": "Alex",
+    "lastName": "Chen",
+    "email": "alex@example.com",
+    "numberOfOrders": "1"
+  },
+  "email": "alex@example.com",
+  "shippingAddress": {
+    "name": "Alex Chen",
+    "address1": "200 Lake Ave",
+    "city": "Austin",
+    "provinceCode": "TX",
+    "zip": "78701",
+    "countryCodeV2": "US"
+  },
+  "lineItems": {
+    "nodes": [
+      {
+        "title": "Ceramic Serum",
+        "variantTitle": "30ml",
+        "sku": "SERUM-30",
+        "quantity": 1
+      }
+    ]
+  },
+  "fulfillments": [
+    {
+      "status": "SUCCESS",
+      "createdAt": "2026-07-02T15:00:00Z",
+      "trackingInfo": []
+    }
+  ],
+  "transactions": [
+    {
+      "kind": "SALE",
+      "status": "SUCCESS",
+      "processedAt": "2026-07-02T09:01:00Z"
+    }
+  ],
+  "risks": []
+}

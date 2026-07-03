@@ -1,9 +1,10 @@
 {
-  "name": "app",
+  "name": "backstop-proof",
   "private": true,
   "scripts": {
     "build": "react-router build",
     "dev": "shopify app dev",
+    "dev:local": "cross-env ENABLE_DEMO_MODE=true SHOPIFY_API_KEY=demo SHOPIFY_API_SECRET=demo SHOPIFY_APP_URL=http://localhost:3000 SCOPES=read_orders,read_customers,read_shopify_payments_disputes,read_shopify_payments_dispute_evidences,write_shopify_payments_dispute_evidences react-router dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
@@ -17,7 +18,10 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "vitest run tests/integration/demo-flow.test.ts"
   },
   "type": "module",
   "engines": {
@@ -32,12 +36,16 @@
     "@shopify/app-bridge-react": "^4.2.4",
     "@shopify/shopify-app-react-router": "^1.1.0",
     "@shopify/shopify-app-session-storage-prisma": "^9.0.0",
+    "@aws-sdk/client-s3": "^3.731.0",
+    "@aws-sdk/s3-request-presigner": "^3.731.0",
     "isbot": "^5.1.31",
+    "pdf-lib": "^1.17.1",
     "prisma": "^6.16.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router": "^7.12.0",
-    "vite-tsconfig-paths": "^6.0.4"
+    "vite-tsconfig-paths": "^6.0.4",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@shopify/api-codegen-preset": "^2.0.0",
@@ -55,9 +63,11 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "graphql-config": "^5.1.1",
+    "cross-env": "^7.0.3",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^2.1.9"
   },
   "workspaces": {
     "packages": [

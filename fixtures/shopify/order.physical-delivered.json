@@ -1,0 +1,82 @@
+{
+  "id": "gid://shopify/Order/1042",
+  "name": "#1042",
+  "createdAt": "2026-07-01T15:20:00Z",
+  "displayFinancialStatus": "PAID",
+  "displayFulfillmentStatus": "FULFILLED",
+  "currencyCode": "USD",
+  "totalPriceSet": {
+    "shopMoney": {
+      "amount": "248.00",
+      "currencyCode": "USD"
+    }
+  },
+  "customer": {
+    "firstName": "Jamie",
+    "lastName": "Rivera",
+    "email": "jamie@example.com",
+    "numberOfOrders": "3"
+  },
+  "email": "jamie@example.com",
+  "shippingAddress": {
+    "name": "Jamie Rivera",
+    "address1": "100 Market St",
+    "address2": "Apt 5",
+    "city": "San Francisco",
+    "provinceCode": "CA",
+    "zip": "94105",
+    "countryCodeV2": "US"
+  },
+  "billingAddress": {
+    "name": "Jamie Rivera",
+    "address1": "100 Market St",
+    "city": "San Francisco",
+    "provinceCode": "CA",
+    "zip": "94105",
+    "countryCodeV2": "US"
+  },
+  "lineItems": {
+    "nodes": [
+      {
+        "title": "Limited Run Hoodie",
+        "variantTitle": "Black / M",
+        "sku": "HOOD-BLK-M",
+        "quantity": 1
+      },
+      {
+        "title": "Logo Cap",
+        "variantTitle": "Navy",
+        "sku": "CAP-NAVY",
+        "quantity": 2
+      }
+    ]
+  },
+  "fulfillments": [
+    {
+      "status": "SUCCESS",
+      "createdAt": "2026-07-02T10:15:00Z",
+      "deliveredAt": "2026-07-03T16:10:00Z",
+      "trackingInfo": [
+        {
+          "company": "UPS",
+          "number": "1Z999AA10123456784",
+          "url": "https://www.ups.com/track?tracknum=1Z999AA10123456784"
+        }
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "kind": "SALE",
+      "status": "SUCCESS",
+      "processedAt": "2026-07-01T15:21:00Z",
+      "amountSet": {
+        "shopMoney": {
+          "amount": "248.00",
+          "currencyCode": "USD"
+        }
+      }
+    }
+  ],
+  "risks": []
+}

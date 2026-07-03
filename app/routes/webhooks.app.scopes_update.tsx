@@ -17,5 +17,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             },
         });
     }
+    await db.shop.updateMany({
+        where: { shopDomain: shop },
+        data: { accessScope: current.toString() },
+    });
     return new Response();
 };
