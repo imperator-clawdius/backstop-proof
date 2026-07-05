@@ -8,7 +8,7 @@ Current result: blocked by interactive Shopify setup. Offline verification can r
 
 ## Local Environment
 
-- Local project path: `C:\Users\Truet\Projects\backstop-proof`
+- Local project path: `%USERPROFILE%\Projects\backstop-proof`
 - Node version observed: `v24.15.0`
 - npm version observed: `11.12.1`
 - Shopify CLI version observed through `npx shopify version`: `4.3.0`
