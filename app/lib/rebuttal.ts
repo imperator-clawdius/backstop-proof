@@ -61,7 +61,7 @@ export function generateRebuttal(input: RebuttalInput): RebuttalResult {
 
   if (tracking?.number) {
     facts.push(
-      `shipped via ${tracking.company ?? "carrier not available"} using tracking number ${tracking.number}`,
+      `Shopify tracking record: ${tracking.company ?? "carrier not available"}, tracking number ${tracking.number}`,
     );
   } else {
     warnings.push("Tracking number is missing.");
@@ -81,11 +81,11 @@ export function generateRebuttal(input: RebuttalInput): RebuttalResult {
 
   const reasonSentence = reasonIntro(reason);
   const trackingSentence = tracking?.number
-    ? `The package was shipped via ${tracking.company ?? "the carrier"} using tracking number ${tracking.number}.`
+    ? `Shopify lists ${tracking.company ?? "the carrier"} tracking number ${tracking.number}. A tracking number alone does not establish shipment or delivery.`
     : "The available Shopify order data does not include a tracking number.";
   const proofSentence =
     input.proofSummary.sealed && input.proofSummary.imageCount > 0
-      ? "The attached evidence includes timestamped packing proof captured before shipment."
+      ? "The pack lists timestamped packing proof records. Review capture and fulfillment timestamps to establish their sequence."
       : "The merchant has not attached sealed packing proof for this order.";
 
   return {
@@ -104,9 +104,9 @@ export function generateRebuttal(input: RebuttalInput): RebuttalResult {
 function reasonIntro(reason: DisputeReason): string {
   switch (reason) {
     case "fraudulent":
-      return "The merchant's position is that the order records and fulfillment evidence support that the transaction was fulfilled as ordered.";
+      return "The merchant requests review of the available order, transaction, and fulfillment records for this disputed transaction.";
     case "product_not_received":
-      return "The merchant's position is that the order was placed, paid successfully, fulfilled to the customer-provided shipping address, and supported by the available fulfillment records.";
+      return "The merchant requests review of the available order, payment, fulfillment, and tracking records for this item-not-received dispute.";
     case "product_unacceptable":
       return "The merchant's position is that the purchased items and fulfillment records should be reviewed alongside any merchant policy and customer communication included in this pack.";
     case "credit_not_processed":

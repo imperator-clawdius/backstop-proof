@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import {
   formatAddress,
@@ -34,21 +37,29 @@ const pageWidth = 612;
 const pageHeight = 792;
 const margin = 54;
 const lineHeight = 13;
+let unicodeFontBytes: Promise<Buffer> | undefined;
+const fontCharacters = new WeakMap<import("pdf-lib").PDFFont, Set<number>>();
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  pdf.registerFontkit(fontkit);
+  // public/ is copied into both the development app and the compiled container.
+  unicodeFontBytes ??= readFile(resolve(process.cwd(), "public/fonts/ZenKakuGothicNew-Regular.ttf"));
+  // Full embedding avoids missing glyph outlines observed with fontkit subsets.
+  const regular = await pdf.embedFont(await unicodeFontBytes, { subset: false });
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const mono = await pdf.embedFont(StandardFonts.Courier);
+  const mono = regular; // Appendix text needs the same Unicode coverage as rows.
   let page = pdf.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
 
   const ensure = (needed = 80) => {
     if (y < margin + needed) {
-      drawFooter(page, input.packId, pdf.getPageCount(), regular);
       page = pdf.addPage([pageWidth, pageHeight]);
       y = pageHeight - margin;
+      return true;
     }
+    return false;
   };
   const drawText = (text: string, options?: { size?: number; font?: typeof regular; color?: ReturnType<typeof rgb> }) => {
     const size = options?.size ?? 10;
@@ -71,11 +82,15 @@ export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint
       thickness: 0.6,
       color: rgb(0.72, 0.76, 0.8),
     });
+    y -= 8;
   };
   const row = (label: string, value: string) => {
     ensure(30);
     page.drawText(label, { x: margin, y, size: 9, font: bold, color: rgb(0.24, 0.27, 0.3) });
     for (const line of wrapText(value || "Not available", regular, 9, 330)) {
+      if (ensure(16)) {
+        page.drawText(`${label} (continued)`, { x: margin, y, size: 8, font: bold, color: rgb(0.24, 0.27, 0.3) });
+      }
       page.drawText(line, { x: 210, y, size: 9, font: regular, color: rgb(0.12, 0.12, 0.12) });
       y -= 12;
     }
@@ -104,7 +119,7 @@ export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint
 
   section("Executive Summary");
   drawText(
-    `The order was placed on ${formatDateTime(input.order.createdAt)}, paid or recorded in Shopify, fulfilled to the customer-provided shipping address when available, and reviewed with the proof and tracking records below. This pack is prepared for merchant review before any submission.`,
+    `Shopify records the order date as ${formatDateTime(input.order.createdAt)}. The following sections present the available payment, fulfillment, proof, and tracking records. Missing data does not establish payment, shipment, or delivery. This pack is prepared for merchant review before any submission.`,
   );
   drawText(
     "Backstop Proof prepares merchant-reviewed evidence materials. It does not provide legal advice and does not guarantee dispute outcomes.",
@@ -116,6 +131,7 @@ export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint
   row("Order name", input.order.name);
   row("Created", formatDateTime(input.order.createdAt));
   row("Total", formatMoney(input.order));
+  row("Payment status", input.order.displayFinancialStatus ?? "Not available");
   row("Customer", getCustomerName(input.order) || "Not available");
   row("Customer email", getCustomerEmail(input.order) || "Not available");
   row("Shipping address", formatAddress(input.order.shippingAddress));
@@ -133,7 +149,7 @@ export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint
   row("Carrier", tracking?.company ?? "Not available from Shopify data");
   row("Tracking number", tracking?.number ?? "Not available from Shopify data");
   row("Tracking URL", tracking?.url ?? "Not available from Shopify data");
-  row("Fulfillment date", formatDateTime(input.order.fulfillments?.[0]?.createdAt));
+  row("Fulfillment record created", formatDateTime(input.order.fulfillments?.[0]?.createdAt));
   row(
     "Delivery confirmation",
     hasDeliveryConfirmation(input.order)
@@ -166,8 +182,11 @@ export async function generateEvidencePdf(input: EvidencePdfInput): Promise<Uint
 
   section("Timeline");
   row("Order created", formatDateTime(input.order.createdAt));
-  row("Payment captured", formatDateTime(input.order.transactions?.[0]?.processedAt));
-  row("Fulfilled", formatDateTime(input.order.fulfillments?.[0]?.createdAt));
+  const capturedPayment = input.order.transactions?.find(
+    (transaction) => transaction.status === "SUCCESS" && ["SALE", "CAPTURE"].includes(transaction.kind ?? ""),
+  );
+  row("Successful sale/capture", formatDateTime(capturedPayment?.processedAt));
+  row("Fulfillment record created", formatDateTime(input.order.fulfillments?.[0]?.createdAt));
   row("Dispute opened", formatDateTime(input.dispute?.initiatedAt));
   row("Evidence pack generated", formatDateTime(new Date()));
 
@@ -214,21 +233,48 @@ function drawFooter(page: import("pdf-lib").PDFPage, packId: string, pageNumber:
 }
 
 function wrapText(text: string, font: import("pdf-lib").PDFFont, size: number, maxWidth: number): string[] {
+  // A pasted tab is layout whitespace, not a missing visible glyph. Expand it
+  // only for rendering; the stored source text and raw snapshot stay unchanged.
+  const layoutText = text.replace(/\t/g, "    ");
+  let supported = fontCharacters.get(font);
+  if (!supported) {
+    supported = new Set(font.getCharacterSet());
+    fontCharacters.set(font, supported);
+  }
+  for (const character of layoutText) {
+    const codePoint = character.codePointAt(0)!;
+    if (character !== "\n" && character !== "\r" && !supported.has(codePoint)) {
+      throw new Error(`PDF font does not support U+${codePoint.toString(16).toUpperCase()}. Original text was not replaced.`);
+    }
+  }
   const lines: string[] = [];
-  for (const rawLine of String(text).split("\n")) {
-    const words = rawLine.split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
+  for (const rawLine of layoutText.split(/\r?\n/)) {
+    const words = rawLine.match(/\S+|\s+/gu) ?? [];
+    if (!words.length) {
       lines.push("");
       continue;
     }
     let current = "";
     for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, size) <= maxWidth || current === "") {
+      const candidate = current + word;
+      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
         current = candidate;
       } else {
-        lines.push(current);
-        current = word;
+        if (current) lines.push(current);
+        current = "";
+        // Tracking URLs, hashes, and CJK text may have no spaces. Wrap on
+        // grapheme boundaries so every character survives without overflow.
+        for (const { segment } of graphemes.segment(word)) {
+          if (font.widthOfTextAtSize(segment, size) > maxWidth) {
+            throw new Error("A text grapheme exceeds the PDF column width.");
+          }
+          if (current && font.widthOfTextAtSize(current + segment, size) > maxWidth) {
+            lines.push(current);
+            current = segment;
+          } else {
+            current += segment;
+          }
+        }
       }
     }
     if (current) lines.push(current);

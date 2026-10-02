@@ -6,6 +6,9 @@ Backstop Proof does not provide legal advice and does not guarantee dispute outc
 
 ## Local Setup
 
+Use Node.js 22.15 or newer on the 22.x line, or Node.js 24+. CI verifies Node 22
+and 24 with the committed npm lockfile; the production image uses Node 22.
+
 Do not run or keep the project under `C:\Windows\system32`. Use a normal user-owned projects directory.
 
 Windows PowerShell:
