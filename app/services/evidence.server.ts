@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import prisma from "../db.server";
 import { calculateEvidenceCompleteness } from "../lib/evidence-score";
 import { assertProofCaptureMatchesOrder } from "../lib/proof-integrity";
@@ -31,6 +32,10 @@ export async function generateEvidencePack(input: {
   const order = await loadOrder(input.context, parsed.orderId);
   if (!order) throw new Error("Order was not found.");
   const dispute = parsed.disputeId ? await loadDispute(input.context, parsed.disputeId) : null;
+  if (parsed.disputeId && !dispute) throw new Error("Dispute was not found.");
+  if (dispute && dispute.order?.id !== order.id) {
+    throw new Error("Dispute does not belong to this order.");
+  }
   const settings = parseShopSettings(input.context.shop);
   const policyText = policyTextFromSettings(settings);
   const proofCapture = parsed.proofCaptureId
@@ -47,6 +52,9 @@ export async function generateEvidencePack(input: {
         orderBy: { updatedAt: "desc" },
         include: { files: true },
       });
+  if (parsed.proofCaptureId && !proofCapture) {
+    throw new Error("Proof capture was not found for this shop.");
+  }
   const proofFiles = proofCapture?.files ?? [];
   if (proofCapture) {
     assertProofCaptureMatchesOrder({
@@ -81,7 +89,7 @@ export async function generateEvidencePack(input: {
     generatedAt: new Date().toISOString(),
     demoMode: input.context.demoMode,
   };
-  const packId = `pack_${Date.now()}`;
+  const packId = `pack_${randomUUID()}`;
   const pdfBytes = await generateEvidencePdf({
     packId,
     shopName: settings.storeDisplayName || input.context.shopDomain,
@@ -111,10 +119,11 @@ export async function generateEvidencePack(input: {
   });
   const pack = await prisma.evidencePack.create({
     data: {
+      id: packId,
       shopId: input.context.shop.id,
       shopifyOrderId: order.id,
       orderName: order.name,
-      disputeId: dispute?.id ?? parsed.disputeId ?? null,
+      disputeId: dispute?.id ?? null,
       proofCaptureId: proofCapture?.id ?? null,
       pdfStorageKey: storageResult.storageKey,
       rebuttalText: rebuttal.text,

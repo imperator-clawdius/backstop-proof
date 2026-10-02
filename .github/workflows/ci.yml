@@ -2,38 +2,50 @@ on: [push, pull_request]
 
 name: CI
 
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   CI:
-    name: Node ${{ matrix.node }} and ${{ matrix.manager }}
-    runs-on: ubuntu-latest
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
-        node: [20.19.0, 22, 24]
-        manager: ['npm', 'yarn', 'pnpm']
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
 
-      - name: Install pnpm
-        if: ${{ matrix.manager == 'pnpm' }}
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-        with:
-          version: 8
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Install dependencies using ${{ matrix.manager }}
-        run: ${{ matrix.manager }} install
+      - name: Generate and validate Prisma client
+        run: npx prisma generate && npx prisma validate
 
       - name: Run TypeScript type checking
-        if: ${{ !startsWith(github.head_ref || github.ref_name, 'javascript') }}
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Run ESLint
         run: npm run lint
 
-      - name: Validate Prisma
-        run: npx prisma generate && npx prisma validate
+      - name: Unit and demo integration tests
+        run: npm test
 
       - name: Build application
         run: npm run build
+
+      - name: Audit all dependencies
+        run: npm audit
+
+      - name: Build production Docker image
+        if: matrix.node == '22'
+        run: docker build --tag backstop-proof:ci .
