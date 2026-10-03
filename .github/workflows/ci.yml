@@ -42,6 +42,9 @@ jobs:
       - name: Unit and demo integration tests
         run: npm test
 
+      - name: Verify GraphQL tooling with local fixtures
+        run: npm run test:graphql
+
       - name: Verify configured SQLite location and restart persistence
         run: npm run test:database
 

@@ -1,0 +1,23 @@
+scalar DateTime
+scalar Decimal
+scalar JSON
+type MoneyV2 { amount: Decimal!, currencyCode: String! }
+type MoneyBag { shopMoney: MoneyV2! }
+type Customer { firstName: String, lastName: String, email: String, numberOfOrders: Int! }
+type MailingAddress { name: String, address1: String, address2: String, city: String, provinceCode: String, zip: String, countryCodeV2: String }
+type LineItem { title: String!, variantTitle: String, sku: String, quantity: Int! }
+type LineItemConnection { nodes: [LineItem!]! }
+type TrackingInfo { company: String, number: String, url: String }
+type Fulfillment { status: String!, createdAt: DateTime!, deliveredAt: DateTime, trackingInfo(first: Int): [TrackingInfo!]! }
+type OrderTransaction { kind: String!, status: String!, processedAt: DateTime, amountSet: MoneyBag! }
+type Order { id: ID!, name: String!, createdAt: DateTime!, displayFinancialStatus: String, displayFulfillmentStatus: String!, currencyCode: String!, email: String, totalPriceSet: MoneyBag!, customer: Customer, shippingAddress: MailingAddress, billingAddress: MailingAddress, lineItems(first: Int): LineItemConnection!, fulfillments(first: Int): [Fulfillment!]!, transactions(first: Int): [OrderTransaction!]! }
+type OrderConnection { nodes: [Order!]! }
+type DisputeReason { reason: String, networkReasonCode: String }
+type ShopifyPaymentsDisputeEvidence { id: ID!, submitted: Boolean!, customerFirstName: String, customerLastName: String, customerEmailAddress: String, uncategorizedText: String, refundPolicyDisclosure: String, refundRefusalExplanation: String, cancellationPolicyDisclosure: String, cancellationRebuttal: String, accessActivityLog: String }
+type ShopifyPaymentsDispute { id: ID!, legacyResourceId: Int!, status: String!, initiatedAt: DateTime!, evidenceDueBy: DateTime, evidenceSentOn: DateTime, amount: MoneyV2!, reasonDetails: DisputeReason!, order: Order, disputeEvidence: ShopifyPaymentsDisputeEvidence }
+type DisputeConnection { nodes: [ShopifyPaymentsDispute!]! }
+input ShopifyPaymentsDisputeEvidenceUpdateInput { uncategorizedText: String, customerFirstName: String, fixtureJson: JSON }
+type UserError { field: [String!], message: String! }
+type DisputeEvidenceUpdatePayload { disputeEvidence: ShopifyPaymentsDisputeEvidence, userErrors: [UserError!]! }
+type Query { orders(first: Int!, reverse: Boolean, query: String): OrderConnection!, order(id: ID!): Order, disputes(first: Int!, reverse: Boolean): DisputeConnection!, dispute(id: ID!): ShopifyPaymentsDispute, disputeEvidence(id: ID!): ShopifyPaymentsDisputeEvidence }
+type Mutation { disputeEvidenceUpdate(id: ID!, input: ShopifyPaymentsDisputeEvidenceUpdateInput!): DisputeEvidenceUpdatePayload! }

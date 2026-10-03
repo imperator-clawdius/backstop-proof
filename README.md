@@ -104,6 +104,29 @@ Proof uploads are limited to 25 MB each. Accepted merchant upload MIME types are
 - `npm run smoke`: demo evidence flow smoke test.
 - `npm run build`: production build.
 
+## GraphQL tooling
+
+`npm run graphql-codegen` generates `app/types/admin.types.d.ts` and
+`app/types/admin.generated.d.ts` for the July 2026 Admin API. It uses Shopify's
+standalone preset and pluck hooks with GraphQL Code Generator's programmatic
+core, preserving interpolated `#graphql` fragments and Admin client typing.
+`npm run test:graphql` checks this tooling with fictional schemas and no network.
+
+The dependency-free `.graphqlrc.cjs` keeps the same schema/document projects
+available to GraphQL editors. The default project includes `app/.server`.
+Extension directories containing `schema.graphql` remain discoverable by editors;
+they have no configured generation target. The runner supports no arguments,
+`--project default`, and `--help`; other CLI options are rejected. Source links
+(including directory junctions) are unsupported and cause a clear error.
+
+An existing `app/types/admin-2026-07.schema.json` is preferred. Only when it is
+absent does generation retrieve the fixed public Shopify schema, without merchant
+credentials, with a 25-second request/body deadline and an 8 MiB limit. Redirects
+and retries are disabled. Invalid documents fail before changing generated files.
+The output files are written separately, so interruption during writes is not a
+transaction across all files. Generated types do not establish store access or
+permission to execute an operation.
+
 ## Demo Mode
 
 Standalone demo mode is enabled only when `ENABLE_DEMO_MODE=true` and `SHOPIFY_API_KEY=demo`. Query parameters and request headers do not bypass Shopify authentication. Use `/api/demo/reset` with POST while running standalone demo mode to seed a sealed demo proof capture and a generated evidence PDF.
