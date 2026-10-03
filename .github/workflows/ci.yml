@@ -14,6 +14,8 @@ jobs:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      DATABASE_URL: file:dev.sqlite
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +41,9 @@ jobs:
 
       - name: Unit and demo integration tests
         run: npm test
+
+      - name: Verify configured SQLite location and restart persistence
+        run: npm run test:database
 
       - name: Build application
         run: npm run build

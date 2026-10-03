@@ -84,7 +84,9 @@ Common Shopify install failures:
 
 ## Environment
 
-Copy `.env.example` to `.env` and fill Shopify keys. `.env.example` intentionally contains placeholders only. SQLite is the default local Prisma datasource. For production, use PostgreSQL by updating the Prisma datasource provider and `DATABASE_URL`, then creating a production migration before launch.
+Copy `.env.example` to `.env` and fill Shopify keys. `.env.example` intentionally contains placeholders only. `DATABASE_URL` is required for migrations and application database access. The example `file:dev.sqlite` selects `prisma/dev.sqlite`, relative to the Prisma schema. An absolute SQLite URL, such as `file:/data/backstop.sqlite`, selects that file for both migrations and the generated application client. Preserve or explicitly move existing data before changing this location; changing the URL does not copy a database.
+
+SQLite remains the configured Prisma provider. For production PostgreSQL, update the datasource provider and `DATABASE_URL`, then create and verify a production migration before launch. Changing only the URL does not switch providers.
 
 Storage defaults to local disk at `./storage`. For production, set `STORAGE_DRIVER=s3` and the S3-compatible variables.
 
@@ -97,6 +99,7 @@ Proof uploads are limited to 25 MB each. Accepted merchant upload MIME types are
 - `npm run setup`: `prisma generate && prisma migrate deploy`.
 - `npm run typecheck`: React Router typegen and TypeScript check.
 - `npm run lint`: ESLint.
+- `npm run test:database`: migrate two temporary SQLite databases and verify application writes, independent-process reads, and isolation at the configured locations. It uses fictional rows and removes its own temporary files.
 - `npm test`: Vitest unit and integration tests.
 - `npm run smoke`: demo evidence flow smoke test.
 - `npm run build`: production build.

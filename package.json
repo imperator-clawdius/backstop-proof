@@ -21,6 +21,7 @@
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:database": "node tests/runtime/database-location.mjs",
     "smoke": "vitest run tests/integration/demo-flow.test.ts"
   },
   "type": "module",
