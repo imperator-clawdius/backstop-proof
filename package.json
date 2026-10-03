@@ -13,15 +13,17 @@
     "start": "react-router-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate deploy",
-    "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
+    "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint . && eslint --no-ignore .graphqlrc.cjs scripts/graphql-codegen.mjs tests/tooling/graphql-codegen.test.mjs",
     "shopify": "shopify",
     "prisma": "prisma",
-    "graphql-codegen": "graphql-codegen",
+    "graphql-codegen": "node scripts/graphql-codegen.mjs",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "vitest run tests/integration/demo-flow.test.ts"
+    "test:database": "node tests/runtime/database-location.mjs",
+    "smoke": "vitest run tests/integration/demo-flow.test.ts",
+    "test:graphql": "node --test tests/tooling/graphql-codegen.test.mjs"
   },
   "type": "module",
   "engines": {
@@ -49,7 +51,11 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@shopify/api-codegen-preset": "^2.0.0",
+    "@graphql-codegen/core": "5.0.2",
+    "@graphql-codegen/introspection": "5.0.2",
+    "@graphql-codegen/typescript": "5.0.10",
+    "@graphql-tools/graphql-tag-pluck": "8.3.39",
+    "@shopify/graphql-codegen": "0.1.0",
     "@shopify/polaris-types": "1.0.1",
     "@types/eslint": "^9.6.1",
     "@types/node": "^25.5.2",
@@ -64,7 +70,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "graphql-config": "^5.1.1",
+    "graphql": "16.14.2",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
